@@ -1,12 +1,18 @@
+using Domain;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using Repository.Implementation;
+using Repository.Interface;
+using Service.Implementation;
+using Service.Interface;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,9 +34,19 @@ namespace BudMath
         {
 
             services.AddControllers();
+            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Latest);
+            services.AddDbContext<BudMathDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("Db"), b => b.MigrationsAssembly("Domain")));
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+            services.AddScoped(typeof(IUnitOfWork<>), typeof(UnitOfWork<>));
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "BudMath", Version = "v1" });
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "BudMath", Version = "v1" , Contact = new Microsoft.OpenApi.Models.OpenApiContact
+                {
+                    Name = "Muhammad Rehan Baig",
+                    Email = "muhammadrehanbaig@gmail.com"
+                }
+                });
             });
         }
 
