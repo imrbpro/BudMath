@@ -1,99 +1,78 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using BudMath.Helpers;
+using BudMath.Models;
+using Domain.Common;
+using Domain.Entities;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Service.Interface;
+using Microsoft.Extensions.Configuration;
+using Service.Implementation;
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace BudMath.Controllers
 {
-    public class UserController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class UserController : ControllerBase
     {
-        private readonly IUserService _Users;
-        public UserController(IUserService users)
+        UserService _users;
+        UserManager<ApplicationUser> _UserManager;
+        IConfiguration configuration;
+        public UserController(UserService users, UserManager<ApplicationUser> UserManager)
         {
-            _Users = users;
+            _users = users;
+            _UserManager = UserManager;
         }
-        // GET: UserController
-        public ActionResult Index()
-        {
-
-            return Ok(_Users.GetAllUsers());
-        }
-        [HttpGet]
-        [Route("api/User/GetUsers")]
-        public ActionResult GetUsers()
-        {
-            return Ok(_Users.GetAllUsers());
-        }
-        // GET: UserController/Details/5
-        public ActionResult Details(int id)
-        {
-            return View();
-        }
-
-        // GET: UserController/Create
-        public ActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: UserController/Create
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Create(IFormCollection collection)
+        [Route("Login")]
+        //api/User/Login
+        public async Task<IActionResult> SigninUser([FromBody] Login _Users)
         {
-            try
+            var user = await _UserManager.FindByNameAsync(_Users.Username);
+            if (user != null && await _UserManager.CheckPasswordAsync(user, _Users.Password))
             {
-                return RedirectToAction(nameof(Index));
+                var userRoles = await _UserManager.GetRolesAsync(user);
+                var authClaims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                };
+                foreach(var userRole in userRoles)
+                {
+                    authClaims.Add(new Claim(ClaimTypes.Role,userRole));
+                }
+                var TokenDetails = TokenHelper.GenerateToken(configuration, DateTime.Now.AddHours(3), authClaims);
+                return Ok(TokenDetails);
             }
-            catch
-            {
-                return View();
-            }
+            return Unauthorized();
         }
-
-        // GET: UserController/Edit/5
-        public ActionResult Edit(int id)
-        {
-            return View();
-        }
-
-        // POST: UserController/Edit/5
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Edit(int id, IFormCollection collection)
+        [Route("Register")]
+        //api/User/Register
+        public async Task<IActionResult> AddNewUser([FromBody] Register _Users)
         {
-            try
+            var userExists = _UserManager.FindByNameAsync(_Users.Username);
+            if(userExists != null)
             {
-                return RedirectToAction(nameof(Index));
+                return StatusCode(StatusCodes.Status208AlreadyReported, new  { Status= "Error", Message="User Already Exists" });
             }
-            catch
+            ApplicationUser user = new ApplicationUser()
             {
-                return View();
-            }
-        }
-
-        // GET: UserController/Delete/5
-        public ActionResult Delete(int id)
-        {
-            return View();
-        }
-
-        // POST: UserController/Delete/5
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public ActionResult Delete(int id, IFormCollection collection)
-        {
-            try
+                Email = _Users.Email,
+                SecurityStamp = Guid.NewGuid().ToString(),
+                UserName = _Users.Username
+            };
+            var result = await _UserManager.CreateAsync(user, _Users.Password);
+            if (!result.Succeeded)
             {
-                return RedirectToAction(nameof(Index));
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Status = "Error", Message = "User Not Created" });
             }
-            catch
-            {
-                return View();
-            }
+            return Ok(new { Status = "Success", Message = "User Created Successfully"});
         }
     }
 }
