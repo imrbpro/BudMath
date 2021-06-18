@@ -16,6 +16,7 @@ namespace BudMath.Helpers
         {
             services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped(typeof(IUnitOfWork<>), typeof(UnitOfWork<>));
+            services.AddScoped<IUserService, UserService>();
             return services;
         }
     }

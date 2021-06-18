@@ -20,13 +20,13 @@ namespace BudMath.Controllers
     [ApiController]
     public class UserController : ControllerBase
     {
-        UserService _users;
-        UserManager<ApplicationUser> _UserManager;
-        IConfiguration configuration;
-        public UserController(UserService users, UserManager<ApplicationUser> UserManager)
+        private readonly UserManager<ApplicationUser> _UserManager;
+        private readonly IConfiguration _Configuration;
+        public UserController(IConfiguration configuration, UserManager<ApplicationUser> UserManager)
         {
-            _users = users;
             _UserManager = UserManager;
+            _Configuration = configuration;
+            
         }
         [HttpPost]
         [Route("Login")]
@@ -46,7 +46,7 @@ namespace BudMath.Controllers
                 {
                     authClaims.Add(new Claim(ClaimTypes.Role,userRole));
                 }
-                var TokenDetails = TokenHelper.GenerateToken(configuration, DateTime.Now.AddHours(3), authClaims);
+                var TokenDetails = TokenHelper.GenerateToken(_Configuration, DateTime.Now.AddHours(3), authClaims);
                 return Ok(TokenDetails);
             }
             return Unauthorized();
